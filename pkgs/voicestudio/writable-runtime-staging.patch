@@ -1,0 +1,74 @@
+diff --git a/electron/src/main/runtime-project.ts b/electron/src/main/runtime-project.ts
+index df04c23e..a05a258d 100644
+--- a/electron/src/main/runtime-project.ts
++++ b/electron/src/main/runtime-project.ts
+@@ -3,7 +3,9 @@ import { downloadRuntimeInstaller } from './runtime-download';
+ import { execFile } from 'node:child_process';
+ import { createHash, randomUUID } from 'node:crypto';
+ import {
++  chmod,
+   cp,
++  lstat,
+   mkdir,
+   readFile,
+   readdir,
+@@ -32,13 +34,8 @@ export const ROCM_TORCH_PINS = [
+   'torchaudio==2.8.0',
+   'torchvision==0.23.0',
+ ] as const;
+-export const RUNTIME_REPAIR_PACKAGES = [
+-  'torch',
+-  'torchaudio',
+-  'torchvision',
+-] as const;
+-export const RUNTIME_NATIVE_IMPORT_PROBE =
+-  'import torch, torchaudio, torchvision';
++export const RUNTIME_REPAIR_PACKAGES = ['torch', 'torchaudio', 'torchvision'] as const;
++export const RUNTIME_NATIVE_IMPORT_PROBE = 'import torch, torchaudio, torchvision';
+ export const RUNTIME_IMPORT_PROBE =
+   'import fastapi, uvicorn, omnivoice, faster_whisper, sentencepiece, torch, torchaudio, torchvision';
+ const RUNTIME_SCHEMA = 'electron-runtime-v2-cudnn8';
+@@ -349,6 +346,20 @@ export async function runtimeCompatible(bundle: string, project: string): Promis
+   }
+ }
+ 
++/**
++ * fs.cp keeps source modes, so a bundle on a read-only install (the Nix store,
++ * a read-only mount) would stage a tree the backend cannot write and the next
++ * update cannot remove. Grant the owner write access, never following links.
++ */
++async function makeOwnerWritable(path: string): Promise<void> {
++  const info = await lstat(path).catch(() => null);
++  if (!info || info.isSymbolicLink()) return;
++  if ((info.mode & 0o200) === 0) await chmod(path, info.mode | 0o200);
++  if (info.isDirectory()) {
++    for (const entry of await readdir(path)) await makeOwnerWritable(join(path, entry));
++  }
++}
++
+ /** Replace only bundled code. The interpreter, models and user data are never removed. */
+ export async function stageRuntimeSources(bundle: string, project: string): Promise<void> {
+   await mkdir(project, { recursive: true });
+@@ -356,11 +367,14 @@ export async function stageRuntimeSources(bundle: string, project: string): Prom
+     const target = join(project, name);
+     const pending = join(project, `.incoming-${name}`);
+     const previous = join(project, `.previous-${name}`);
++    await makeOwnerWritable(pending);
+     await rm(pending, { recursive: true, force: true });
+     await cp(join(bundle, name), pending, {
+       recursive: true,
+       filter: (source) => !source.split(/[\\/]/).includes('__pycache__'),
+     });
++    await makeOwnerWritable(pending);
++    await makeOwnerWritable(previous);
+     await rm(previous, { recursive: true, force: true });
+     let moved = false;
+     try {
+@@ -375,6 +389,7 @@ export async function stageRuntimeSources(bundle: string, project: string): Prom
+       if (moved) await rename(previous, target);
+       throw error;
+     }
++    await makeOwnerWritable(previous);
+     await rm(previous, { recursive: true, force: true });
+   }
+ }

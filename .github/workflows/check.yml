@@ -1,0 +1,40 @@
+# Keeps the repo valid for NUR and for use as a flake input.
+# Evaluation only: nothing is built, so this stays fast.
+name: Check
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v31
+        with:
+          extra_nix_config: experimental-features = nix-command flakes
+
+      - name: Check formatting
+        run: nix fmt -- --check $(git ls-files '*.nix')
+
+      - name: Check the flake
+        run: nix flake check --no-build
+
+      # The same evaluation NUR runs: no flakes, restricted eval, no IFD.
+      - name: Check NUR evaluation
+        run: |
+          nixpkgs=$(nix eval --raw --impure --expr '(builtins.getFlake (toString ./.)).inputs.nixpkgs.outPath')
+          nix-env -f . -qa '*' --meta --json --drv-path --show-trace \
+            --allowed-uris https://static.rust-lang.org \
+            --option restrict-eval true \
+            --option allow-import-from-derivation false \
+            -I nixpkgs=$nixpkgs -I $PWD > /dev/null
+
+      # Asks NUR to pick up this commit now instead of on its next daily run.
+      # Fails harmlessly until the repo is listed in NUR.
+      - name: Notify NUR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        continue-on-error: true
+        run: curl -fsS -XPOST "https://nur-update.nix-community.org/update?repo=klein-davis"
