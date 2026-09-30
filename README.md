@@ -7,6 +7,7 @@ My custom Nix packages. The repo works two ways from the same files:
 
 | Package | Description |
 |---|---|
+| `computer-use-linux` | [computer-use-linux](https://github.com/agent-sh/computer-use-linux), an MCP server for desktop control (accessibility trees, screenshots, input) for AI clients such as LM Studio. See [its notes](pkgs/computer-use-linux/README.md). |
 | `voicestudio` | [VoiceStudio](https://github.com/debpalash/VoiceStudio), a fully-local voice cloning, dubbing and dictation app (Electron, x86_64-linux). See [its notes](pkgs/voicestudio/README.md). |
 
 ## Try a package
@@ -124,7 +125,13 @@ Each package pins its own upstream source with `fetchFromGitHub` (a rev plus a h
 
 ## Update packages
 
-Packages are updated by hand:
+A tagged release where every hash is a standard attribute, such as `computer-use-linux`, updates with [nix-update](https://github.com/Mic92/nix-update):
+
+```sh
+nix run nixpkgs#nix-update -- --flake computer-use-linux
+```
+
+It bumps `version`, `hash` and `cargoHash`. Other packages are updated by hand:
 1. Change `version` and `rev`.
 2. Set each hash that has to change to `lib.fakeHash`.
 3. Run `nix build .#<name>` and paste each `got:` hash from the error in place of the placeholder.
