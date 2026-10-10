@@ -9,6 +9,7 @@ My custom Nix packages. The repo works two ways from the same files:
 |---|---|
 | `computer-use-linux` | [computer-use-linux](https://github.com/agent-sh/computer-use-linux), an MCP server for desktop control (accessibility trees, screenshots, input) for AI clients such as LM Studio. See [its notes](pkgs/computer-use-linux/README.md). |
 | `voicestudio` | [VoiceStudio](https://github.com/debpalash/VoiceStudio), a fully-local voice cloning, dubbing and dictation app (Electron, x86_64-linux). See [its notes](pkgs/voicestudio/README.md). |
+| `xtool` | [xtool](https://github.com/xtool-org/xtool), a cross-platform Xcode replacement: build/sign/deploy iOS apps with SwiftPM from Linux. Patches two upstream bugs to build offline; see [its notes](pkgs/xtool/README.md). |
 
 ## Try a package
 

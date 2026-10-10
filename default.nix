@@ -7,4 +7,5 @@
 {
   computer-use-linux = pkgs.callPackage ./pkgs/computer-use-linux/package.nix { };
   voicestudio = pkgs.callPackage ./pkgs/voicestudio/package.nix { };
+  xtool = pkgs.callPackage ./pkgs/xtool/package.nix { };
 }
